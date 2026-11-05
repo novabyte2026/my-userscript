@@ -2,8 +2,8 @@
 // @name         מתמחים טופ - קטגוריית תוספים
 // @name:en      Mitmachim Top - Add-ons Category
 // @namespace    https://mitmachim.top/
-// @version      1.4.0
-// @description  מוסיף לפורום מתמחים טופ קטגוריית תוספים (תוספי כרום + טמפרמונקי) עם חיפוש, מיון, הצמדה וסימון ידני
+// @version      1.5.0
+// @description  מוסיף לפורום מתמחים טופ קטגוריית תוספים (כרום + טמפרמונקי) עם חיפוש ומיון
 // @author       Mitmachim Top
 // @match        https://mitmachim.top/*
 // @icon         https://mitmachim.top/favicon.ico
@@ -54,7 +54,7 @@
 
   const BASE = location.origin;
   const SOURCE_CID = 70;
-  const CACHE_KEY = 'mtp_cache_v3';
+  const CACHE_KEY = 'mtp_cache_v4';
   const FULL_AGE = 3 * 24 * 60 * 60 * 1000;  // סריקה מלאה של כל הפורום כל 3 ימים
   const QUICK_EVERY = 4 * 60 * 1000;     // בדיקת תוספים חדשים כל 4 דקות
   const PINS_KEY = 'mtp_pins', SEEN_KEY = 'mtp_seen';
@@ -62,12 +62,22 @@
   const HASH = '#mtp-plugins';
 
   const RX_TM = /טמפר|טמפרמונקי|טמפרמנקי|tamper|monkey|userscript|user\.js|סקריפט|greasy|ויולנט|violent/i;
-  const RX_EXT = /תוסף|תוספים|תוספון|extension|הרחבה|כרום|chrome|crx|אקסטנש|אדון|add-?on/i;
+  const RX_EXT = /תוסף|תוספים|תוספי|תוספון|extension|הרחבה|כרום|chrome|crx|אקסטנש|אדון|add-?on/i;
   // מחוץ ל'תוכנות להורדה' דורשים מילה חזקה בכותרת, כדי לא לאסוף כל שאלה על כרום
-  const RX_STRONG_TM = /טמפרמונקי|טמפרמנקי|טמפר מונקי|tampermonkey|violentmonkey|greasemonkey|userscript|user[. ]js|סקריפט (ל|עבור|ש)?טמפר/i;
-  const RX_STRONG_EXT = /תוסף|תוספים|תוספון|extension|הרחבה (ל|עבור )?(כרום|דפדפן|chrome)/i;
+  const RX_STRONG_TM = /טמפרמונק|טמפרמנק|טמפר ?מונק|טמפמונק|tampermonk|tempermonk|tampermank|violentmonkey|greasemonkey|userscript|user[. ]js|סקריפט (ל|עבור|ש)?טמפר/i;
+  const RX_STRONG_EXT = /תוסף|תוספים|תוספי|תוספון|extension|הרחבה (ל|עבור )?(כרום|דפדפן|chrome)/i;
   // בקשות / שאלות – לא תוספים (אלא אם סומנו ידנית)
   const RX_REQ = /^\s*[\[(]?\s*(בקשה|בקשת|שאלה|עזרה|בעיה|בירור|דיון|הצעה|מחפש|מחפשת|מישהו)(?=[\s|:\])\-]|$)|\?\s*$/;
+  // תוספים לתוכנות (וורד, פוטושופ וכו') – לא תוספי דפדפן
+  const RX_NONBROWSER = /וורד|\bword\b|פוטושופ|photoshop|אילוסטרייטור|illustrator|פרימייר|premiere|אפטר ?אפקט|after ?effects|אאוטלוק|outlook|אקסל|excel|פאוור ?פוינט|powerpoint|אופיס|\boffice\b|אינדיזיין|indesign|רוויט|revit|אוטוקאד|autocad|ויז'?ואל ?סטודיו|visual studio|vs ?code|קודי(?![א-ת])|\bkodi\b|נוטפד|notepad|לייטרום|lightroom|קורל|corel|בלנדר|blender|סקצ'?אפ|sketchup|motionbro|תורת אמת|אוצריא|בר ?אילן|ג'?וויז|\bjaws\b|\bnvda\b|מיינקראפט|minecraft|דאווינצ'?י|davinci|קאמטזיה|camtasia|אודסיטי|audacity|קיובייס|cubase|fl ?studio|ableton|סולידוורקס|solidworks|3ds ?max|קאנבה|canva|פיגמה|figma|ווינרר|winrar|7-?zip|טוטאל ?קומנדר|total commander|\bmsfs\b|גוגל ?שיטס|google sheets|גוגל ?דוקס|google docs/i;
+  const RX_BROWSER = /כרום|chrome|דפדפן|browser|\bedge\b|אדג'|firefox|פיירפוקס|ברייב|brave|אופרה|opera|טמפר|tamper|violentmonkey|userscript|crx|חנות התוספים|web ?store/i;
+  const isNonBrowser = t => RX_NONBROWSER.test(t) && !RX_BROWSER.test(t);
+  // מועמדים חלשים מחוץ ל'תוכנות להורדה' – נכנסים רק אם תוכן ההודעה מאשר
+  // לנושאים עם כותרת חלשה דורשים ראיה חזקה בתוכן (לא רק 'מצב מפתחים', שמופיע בהרבה מדריכים)
+  const RX_BODY_STRICT_TM = /==UserScript==|greasyfork\.org|\.user\.js|tampermonkey|violentmonkey|טמפרמונקי/i;
+  const RX_BODY_STRICT_EXT = /chromewebstore\.google\.com|chrome\.google\.com\/webstore|\.crx\b|טען (פריט|תוסף) לא ארוז|load unpacked|manifest\.json|microsoftedge\.microsoft\.com\/addons/i;
+  const RX_GUIDE = /^\s*[\[(]?\s*(מדריך|הסבר|סקירה|חדשות|מאמר)(?=[\s|:\])\-]|$)/;
+  const RX_WEAK = /סקריפט|script|כרום|chrome|דפדפן|browser|גריסמונקי|greasy/i;
   let tree70 = new Set([SOURCE_CID]);
   let metaDone = {};        // נושאים מחוץ ל'תוכנות להורדה' שכבר נבדקו (מפת האתר)
   const userCache = {};
@@ -86,7 +96,7 @@
   let openFlag = false, openPath = '';
   const state = { sub: null, q: '', sort: 'new', shown: 50, showAll: false };
 
-  const RX_BODY_TM = /tampermonkey|violentmonkey|greasyfork|\.user\.js|==UserScript==|@match|טמפרמונקי|טמפר מונקי/i;
+  const RX_BODY_TM = /tampermonkey|tampermonky|violentmonkey|greasyfork|\.user\.js|==UserScript==|@match|טמפרמונקי|טמפר מונקי/i;
   const RX_BODY_EXT = /chromewebstore\.google\.com|chrome\.google\.com\/webstore|\.crx\b|chrome:\/\/extensions|מצב מפתחים|developer mode|טען (פריט|תוסף) לא ארוז|load unpacked|manifest\.json|microsoftedge\.microsoft\.com\/addons|addons\.mozilla\.org/i;
 
   /* ---------- נתונים ---------- */
@@ -115,7 +125,7 @@
   }
 
   const classifyTitle = (t) => {
-    if (RX_REQ.test(t.title)) return null;
+    if (RX_REQ.test(t.title) || isNonBrowser(t.title)) return null;
     const hay = `${t.title} ${(t.tags || []).join(' ')}`;
     if (t.cid == null || tree70.has(+t.cid)) {
       if (RX_TM.test(hay)) return 'tm';
@@ -142,7 +152,7 @@
 
   function place(t) {
     const o = overrides[t.tid];
-    t.type = o === 'no' ? null : (o || classifyTitle(t) || (RX_REQ.test(t.title) ? null : checked[t.tid]) || null);
+    t.type = o === 'no' ? null : (o || classifyTitle(t) || (RX_REQ.test(t.title) || isNonBrowser(t.title) || (!tree70.has(+t.cid) && RX_GUIDE.test(t.title)) ? null : checked[t.tid]) || null);
     if (t.type) { topics.set(t.tid, merge(topics.get(t.tid), t)); pool2.delete(t.tid); }
     else { topics.delete(t.tid); pool2.set(t.tid, merge(pool2.get(t.tid), t)); }
   }
@@ -214,7 +224,18 @@
     if (quick) {
       // תוספים חדשים: הנושאים האחרונים בכל הפורום (כולל כל הקטגוריות)
       phase = 'בודק תוספים חדשים';
-      await pool([1, 2, 3, 4, 5], async p => eatTopics(await getJSON(`/api/recent?page=${p}`)), 5);
+      const weak = [];
+      await pool([1, 2, 3, 4, 5], async p => {
+        const d = await getJSON(`/api/recent?page=${p}`);
+        eatTopics(d);
+        (d.topics || []).forEach(t => { if (!tree70.has(+t.cid) && !topics.has(t.tid) && !(t.tid in checked) && !overrides[t.tid] && RX_WEAK.test(t.title) && !RX_GUIDE.test(t.title) && !RX_REQ.test(t.title) && !isNonBrowser(t.title)) weak.push(t); });
+      }, 5);
+      await pool(weak, async t => {
+        let content = '';
+        try { content = (await getJSON(`/api/v3/posts/${t.mainPid}/raw`, 1)).response?.content || ''; } catch (e) {}
+        checked[t.tid] = RX_BODY_STRICT_TM.test(content) ? 'tm' : RX_BODY_STRICT_EXT.test(content) ? 'ext' : 0;
+        if (checked[t.tid]) add(t, null, false);
+      }, 6);
     } else {
       // 1. כל העמודים של 'תוכנות להורדה' ותתי הקטגוריות שלה
       phase = 'סורק את תוכנות להורדה';
@@ -227,15 +248,25 @@
       phase = 'סורק את כל הפורום';
       progress = 0; render(true);
       const all = await sitemapTopics();
-      const cand = all.filter(([tid, slug]) => !topics.has(tid) && !pool2.has(tid) && !metaDone[tid] && !overrides[tid]
-        && !RX_REQ.test(slug) && (RX_STRONG_TM.test(slug) || RX_STRONG_EXT.test(slug)));
+      const fresh = ([tid, slug]) => !topics.has(tid) && !pool2.has(tid) && !metaDone[tid] && !overrides[tid] && !RX_REQ.test(slug) && !isNonBrowser(slug);
+      const strong = ([, slug]) => RX_STRONG_TM.test(slug) || RX_STRONG_EXT.test(slug);
+      const cand = all.filter(x => fresh(x) && (strong(x) || (RX_WEAK.test(x[1]) && !RX_GUIDE.test(x[1])))).map(x => [x[0], strong(x)]);
       if (cand.length) {
         phase = `בודק ${cand.length} נושאים מכל הפורום`;
-        await pool(cand, async ([tid]) => {
+        let n = 0;
+        await pool(cand, async ([tid, isStrong]) => {
           const d = (await getJSON(`/api/v3/topics/${tid}`, 1)).response;
           metaDone[tid] = 1;
           if (!d || d.deleted || d.scheduled) return;
+          if (!isStrong && !tree70.has(+d.cid) && !(tid in checked)) {
+            // כותרת חלשה ('סקריפט', 'כרום'...) – בודקים את תוכן ההודעה הראשונה
+            let content = '';
+            try { content = (await getJSON(`/api/v3/posts/${d.mainPid}/raw`, 1)).response?.content || ''; } catch (e) {}
+            checked[tid] = RX_BODY_STRICT_TM.test(content) ? 'tm' : RX_BODY_STRICT_EXT.test(content) ? 'ext' : 0;
+            if (!checked[tid]) return;
+          }
           add({ ...d, user: await userOf(d.uid) }, null, tree70.has(+d.cid));
+          if (++n % 100 === 0) saveCache();
         }, 8);
       }
     }
